@@ -1,16 +1,3 @@
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<script>
-const SUPABASE_URL = 'https://fjvhhxbvisddyivjelvf.supabase.co';
-
-const SUPABASE_PUBLISHABLE_KEY =
-'sb_publishable_urVLfsp90Kr9b7Ffy--1OQ_uYXzsdKW';
-
-const nexusSupabase = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_PUBLISHABLE_KEY
-);
-</script>
 <!doctype html>
 <html lang="pt-MZ">
 <head>
@@ -27,7 +14,8 @@ const nexusSupabase = window.supabase.createClient(
     <span class="tag">Área reservada · NEXUS WORK</span>
     <h1>Acesso Administrativo</h1>
     <p class="muted">Esta área é separada do site público. O acesso é feito pelo Supabase Auth e o utilizador só entra se tiver um perfil administrativo ativo.</p>
-    <div id="loginMsg" class="notice hidden"></div>
+    <div id="loginMsg" class="notice hidden" role="alert"></div>
+    <div id="diagnostic" class="notice hidden" style="white-space:pre-wrap"></div>
     <form id="loginForm">
       <label>E-mail<input id="email" type="email" autocomplete="username" required></label>
       <label>Palavra-passe<input id="password" type="password" autocomplete="current-password" required></label>
@@ -75,9 +63,9 @@ async function getProfile(user){
   if(roleKey==='super_admin' && Number(data.role_id)!==1) throw new Error('Configuração inválida do Super Admin: role_id esperado = 1.');
   return {...data,role:roleKey};
 }
-async function login(e){e.preventDefault();const btn=document.getElementById('loginBtn');hide('loginMsg');btn.disabled=true;btn.textContent='A validar...';try{const email=document.getElementById('email').value.trim();const password=document.getElementById('password').value;const r=await sb.auth.signInWithPassword({email,password});if(r.error)throw new Error(r.error.message);currentUser=r.data.user;if(!currentUser)throw new Error('Sessão não criada.');currentProfile=await getProfile(currentUser);showApp();}catch(err){await sb.auth.signOut();msg('loginMsg',friendly(err),'error');}finally{btn.disabled=false;btn.textContent='Entrar'}}
+async function login(e){e.preventDefault();const btn=document.getElementById('loginBtn');hide('loginMsg');hide('diagnostic');btn.disabled=true;btn.textContent='A validar...';try{const email=document.getElementById('email').value.trim();const password=document.getElementById('password').value;if(!email||!password)throw new Error('Introduza o e-mail e a palavra-passe.');const r=await sb.auth.signInWithPassword({email,password});if(r.error)throw new Error(r.error.message);currentUser=r.data.user;if(!currentUser)throw new Error('O Supabase não devolveu uma sessão.');currentProfile=await getProfile(currentUser);showApp();}catch(err){try{await sb.auth.signOut()}catch(_){}msg('loginMsg',friendly(err),'error');document.getElementById('loginView').classList.remove('hidden');document.getElementById('appView').classList.add('hidden');}finally{btn.disabled=false;btn.textContent='Entrar'}}
 function friendly(err){const m=err?.message||String(err);if(/invalid login credentials/i.test(m))return 'E-mail ou palavra-passe incorretos. A conta Auth deve estar confirmada e ativa.';if(/email not confirmed/i.test(m))return 'O e-mail desta conta ainda não foi confirmado no Supabase Auth.';return m}
-async function testConnection(){const b=document.getElementById('testBtn');b.disabled=true;b.textContent='A testar...';try{const r=await fetch(SUPABASE_URL+'/rest/v1/',{headers:{apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:'Bearer '+SUPABASE_PUBLISHABLE_KEY}});if(r.ok||r.status===404)msg('loginMsg','Ligação ao projeto Supabase estabelecida. Agora use as credenciais do Administrador Máximo.','ok');else throw new Error('HTTP '+r.status)}catch(e){msg('loginMsg','Não foi possível alcançar o projeto Supabase a partir deste navegador: '+e.message,'error')}finally{b.disabled=false;b.textContent='Testar ligação'}}
+async function testConnection(){const b=document.getElementById('testBtn');b.disabled=true;b.textContent='A testar...';hide('loginMsg');hide('diagnostic');try{if(!window.supabase||!window.supabase.createClient)throw new Error('Biblioteca Supabase não carregou.');const {data,error}=await sb.auth.getSession();if(error)throw new Error('Supabase Auth: '+error.message);const r=await fetch(SUPABASE_URL+'/rest/v1/',{method:'GET',headers:{apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:'Bearer '+SUPABASE_PUBLISHABLE_KEY},cache:'no-store'});if(!r.ok&&r.status!==404)throw new Error('REST HTTP '+r.status);msg('loginMsg',data.session?'Ligação OK. Existe uma sessão Supabase guardada neste navegador.':'Ligação OK. Não existe sessão guardada.','ok');}catch(e){msg('loginMsg','Teste de ligação falhou: '+(e?.message||e),'error');}finally{b.disabled=false;b.textContent='Testar ligação'}}
 function showApp(){document.getElementById('loginView').classList.add('hidden');document.getElementById('appView').classList.remove('hidden');document.getElementById('whoName').textContent=currentProfile.full_name||currentUser.email;document.getElementById('whoRole').textContent=roleLabel(currentProfile.role);document.getElementById('welcome').textContent='Bem-vindo, '+(currentProfile.full_name||'Administrador');document.getElementById('heroText').textContent='Perfil: '+roleLabel(currentProfile.role)+' · acesso autorizado pelo Supabase.';document.getElementById('adminsNav').classList.toggle('hidden',!allowedSection(currentProfile.role,'admins'));document.getElementById('permissionsNav').classList.toggle('hidden',currentProfile.role!=='super_admin');document.querySelectorAll('[data-section]').forEach(b=>b.onclick=()=>openSection(b.dataset.section));openSection('overview');loadDashboard();if(currentProfile.role==='super_admin')loadAdminData();}
 function openSection(id){if(!allowedSection(currentProfile.role,id))return;document.querySelectorAll('main section[id]').forEach(s=>s.classList.add('hidden'));const x=document.getElementById(id);if(x)x.classList.remove('hidden');if(id==='admins')loadAdminData();if(id==='permissions')loadRoles();if(id==='approvals')loadApprovals('service_requests');}
 async function countPending(t){const r=await sb.from(t).select('id',{count:'exact',head:true}).eq('status','PENDING');return r.error?0:(r.count||0)}
@@ -91,7 +79,10 @@ async function loadApprovals(table){const box=document.getElementById('approvalT
 async function reviewRecord(table,id,status){const note=prompt(status==='APPROVED'?'Nota opcional de aprovação:':'Motivo da rejeição:','');if(status==='REJECTED'&&note===null)return;const r=await sb.rpc('set_record_status',{p_table:table,p_id:id,p_status:status,p_note:note||null});if(r.error){toast('Não foi possível actualizar: '+r.error.message);return}toast(status==='APPROVED'?'Registo aprovado e publicado.':'Registo rejeitado.');loadApprovals(table);loadDashboard()}
 async function logout(){await sb.auth.signOut();location.reload()}
 
-document.getElementById('loginForm').addEventListener('submit',login);document.getElementById('testBtn').onclick=testConnection;document.getElementById('logoutBtn').onclick=logout;document.getElementById('inviteForm').addEventListener('submit',invite);
+document.getElementById('loginForm').addEventListener('submit',login);document.getElementById('testBtn').onclick=testConnection;
+window.addEventListener('error',e=>{try{msg('loginMsg','Erro JavaScript: '+(e.message||'erro desconhecido'),'error')}catch(_){}});
+window.addEventListener('unhandledrejection',e=>{try{msg('loginMsg','Erro inesperado: '+(e.reason?.message||e.reason||'erro desconhecido'),'error')}catch(_){}});
+document.getElementById('logoutBtn').onclick=logout;document.getElementById('inviteForm').addEventListener('submit',invite);
 sb.auth.onAuthStateChange(async(event,session)=>{if(session?.user&&!currentProfile){try{currentUser=session.user;currentProfile=await getProfile(session.user);showApp()}catch{await sb.auth.signOut()}}});
 (async()=>{const s=await sb.auth.getSession();if(s.data.session){try{currentUser=s.data.session.user;currentProfile=await getProfile(currentUser);showApp()}catch{await sb.auth.signOut()}}})();
 </script>
