@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 150" role="img" aria-labelledby="title desc">
+<title id="title">NEXUS INTELLECT</title><desc id="desc">NEXUS INTELLECT — Consulting and Services</desc>
+<rect width="620" height="150" rx="18" fill="#07163d"/>
+<g fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+<path d="M38 112V38l52 74V38"/><path d="M113 112V38l52 74V38"/>
+<path d="M207 112V38h56"/><path d="M207 75h46"/>
+<path d="M291 112V38h56"/><path d="M291 75h46"/>
+<path d="M375 38v74h56"/><path d="M375 75h46"/>
+</g>
+<text x="462" y="72" fill="#ffffff" font-family="Arial,Helvetica,sans-serif" font-size="31" font-weight="800">NEXUS</text>
+<text x="462" y="108" fill="#8db4ff" font-family="Arial,Helvetica,sans-serif" font-size="25" font-weight="700">INTELLECT</text>
+</svg>
