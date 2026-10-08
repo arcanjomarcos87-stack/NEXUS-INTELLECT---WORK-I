@@ -36,3 +36,19 @@ grant execute on function public.set_record_status(text,uuid,text,text) to authe
 -- 2) Replace YOUR_SUPER_ADMIN_EMAIL below with that exact Auth email.
 -- 3) Run this block once.
 do $$declare v_uid uuid;begin select id into v_uid from auth.users where lower(email)=lower('YOUR_SUPER_ADMIN_EMAIL') limit 1;if v_uid is not null then insert into public.admin_profiles(user_id,full_name,role_id,role,active,status) values(v_uid,'Administrador Máximo',1,'super_admin',true,'active') on conflict(user_id) do update set full_name='Administrador Máximo',role_id=1,role='super_admin',active=true,status='active',updated_at=now();end if;end$$;
+-- REPAIR / VERIFICATION: CLIENTE -> service_requests -> ADMINISTRADOR
+-- Este bloco pode ser executado novamente sem apagar dados.
+grant usage on schema public to anon, authenticated;
+grant select, insert on public.service_requests to anon, authenticated;
+alter table public.service_requests enable row level security;
+drop policy if exists requests_insert on public.service_requests;
+create policy requests_insert on public.service_requests
+  for insert to anon, authenticated
+  with check (status = 'PENDING');
+drop policy if exists requests_read on public.service_requests;
+create policy requests_read on public.service_requests
+  for select to authenticated
+  using (public.is_admin());
+
+-- Garante que a fila administrativa consegue consultar pedidos pendentes.
+grant select on public.service_requests to authenticated;
