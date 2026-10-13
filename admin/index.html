@@ -150,7 +150,7 @@ async function recordAdminAccess(section){
  }catch(err){console.warn('Registo de acesso administrativo indisponível.',err)}
 }
 function accessPageLabel(x){
- const path=String(x.page_path||'').replace(/^\\/+/, '').toLowerCase();
+ const path=String(x.page_path||'').replace(/^\/+/, '').toLowerCase();
  const labels={'inicio':'Página inicial','categorias':'Categorias de serviços','trabalhadores':'Profissionais disponíveis','trabalhos':'Oportunidades de trabalho','acompanhar':'Acompanhar pedido','registar':'Registo de profissional','parcerias':'Parcerias','admin/overview':'Painel administrativo','admin/approvals':'Aprovações','admin/workersManage':'Adicionar profissionais','admin/workersDatabase':'Base de profissionais','admin/admins':'Administradores','admin/removeInvites':'Remover convites','admin/removeClientRequests':'Remover pedidos de clientes','admin/accessLogs':'Monitoria de acessos','admin/accessHistory':'Eliminar histórico de acessos','admin/permissions':'Perfis e permissões'};
  if(labels[path])return labels[path];
  if(path.startsWith('servico/'))return 'Serviço: '+path.slice(8).replace(/-/g,' ');
