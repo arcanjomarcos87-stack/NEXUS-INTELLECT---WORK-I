@@ -154,7 +154,7 @@ async function loadAccessLogs(){
  box.innerHTML='A carregar registos de acesso...';
  try{
   const [recent,total]=await Promise.all([
-   sb.from('access_logs').select('id,visitor_key,user_id,visitor_type,page_path,page_title,referrer,device_type,created_at').order('created_at',{ascending:false}).limit(1000),
+   sb.from('access_logs').select('id,visitor_key,user_id,visitor_type,page_path,page_title,referrer,device_type,country,country_code,province,district,city,geo_source,created_at').order('created_at',{ascending:false}).limit(1000),
    sb.from('access_logs').select('id',{count:'exact',head:true})
   ]);
   if(recent.error)throw new Error(recent.error.message);
@@ -169,7 +169,7 @@ async function loadAccessLogs(){
   document.getElementById('accessIdentified').textContent=String(identified);
   document.getElementById('accessToday').textContent=String(todayCount);
   if(!rows.length){box.innerHTML='<div class="notice">Ainda não há acessos registados. Abra a área pública da NEXUS WORK numa nova janela para testar.</div>';return}
-  box.innerHTML='<p class="muted small">A mostrar os últimos '+rows.length+' registos. O total de acessos considera toda a tabela; os visitantes distintos e os acessos de hoje são calculados nos registos apresentados.</p><table class="table"><thead><tr><th>Data e hora</th><th>Visitante</th><th>Tipo</th><th>Página consultada</th><th>Dispositivo</th><th>Origem externa</th></tr></thead><tbody>'+rows.map(x=>'<tr><td>'+esc(x.created_at?new Date(x.created_at).toLocaleString('pt-MZ'):'—')+'</td><td>'+esc(x.user_id?('Conta: '+x.user_id):('Anónimo · '+String(x.visitor_key||'').slice(0,12)))+'</td><td>'+esc(x.visitor_type||'visitor')+'</td><td>'+esc(x.page_title||x.page_path||'—')+'<br><span class="small">'+esc(x.page_path||'')+'</span></td><td>'+esc(x.device_type||'—')+'</td><td>'+esc(x.referrer||'Acesso directo / não identificado')+'</td></tr>').join('')+'</tbody></table>';
+  box.innerHTML='<p class="muted small">A mostrar os últimos '+rows.length+' registos. O total de acessos considera toda a tabela; os visitantes distintos e os acessos de hoje são calculados nos registos apresentados.</p><table class="table"><thead><tr><th>Data e hora</th><th>Visitante</th><th>Tipo</th><th>Página consultada</th><th>Dispositivo</th><th>Província estimada</th><th>Cidade</th><th>Distrito</th><th>País</th><th>Origem externa</th></tr></thead><tbody>'+rows.map(x=>'<tr><td>'+esc(x.created_at?new Date(x.created_at).toLocaleString('pt-MZ'):'—')+'</td><td>'+esc(x.user_id?('Conta: '+x.user_id):('Anónimo · '+String(x.visitor_key||'').slice(0,12)))+'</td><td>'+esc(x.visitor_type||'visitor')+'</td><td>'+esc(x.page_title||x.page_path||'—')+'<br><span class="small">'+esc(x.page_path||'')+'</span></td><td>'+esc(x.device_type||'—')+'</td><td>'+esc(x.province||'Não identificada')+'</td><td>'+esc(x.city||'Não identificada')+'</td><td>'+esc(x.district||'Não identificado')+'</td><td>'+esc(x.country||'Não identificado')+'</td><td>'+esc(x.referrer||'Acesso directo / não identificado')+'<br><span class="small">'+esc(x.geo_source||'Localização indisponível')+'</span></td></tr>').join('')+'</tbody></table>';
  }catch(err){
   box.innerHTML='<div class="notice error">Não foi possível carregar os acessos: '+esc(err?.message||err)+'. Confirme se a migração da tabela access_logs foi aplicada no Supabase.</div>';
  }
