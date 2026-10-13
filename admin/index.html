@@ -202,10 +202,8 @@ function exportAccessLogs(){
  if(currentProfile?.role!=='super_admin'){toast('Apenas o Super Admin pode exportar os acessos.');return}
  const table=document.querySelector('#accessLogsTable table');
  if(!table){toast('Actualize primeiro a lista de acessos.');return}
- const rows=Array.from(table.querySelectorAll('tr')).map(tr=>Array.from(tr.querySelectorAll('th,td')).map(td=>'"'+td.innerText.replace(/"/g,'""').replace(/
-/g,' ')+'"').join(','));
- const blob=new Blob(['\ufeff'+rows.join('\r
-')],{type:'text/csv;charset=utf-8;'});
+ const rows=Array.from(table.querySelectorAll('tr')).map(tr=>Array.from(tr.querySelectorAll('th,td')).map(td=>'"'+td.innerText.replace(/"/g,'""').replace(/\n/g,' ')+'"').join(','));
+ const blob=new Blob(['\ufeff'+rows.join('\r\n')],{type:'text/csv;charset=utf-8;'});
  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='nexus-work-acessos.csv';a.click();URL.revokeObjectURL(url);
 }
 async function loadClientRequestsToRemove(){
