@@ -105,31 +105,36 @@ async function addMasterWorker(e){
 }
 async function loadApprovals(table){
  const box=document.getElementById('approvalTable');
- box.innerHTML='A carregar...';
+ box.innerHTML='A carregar pedidos...';
  const r=await sb.from(table).select('*').order('created_at',{ascending:false});
  if(r.error){box.innerHTML='<div class="notice error">Falha ao consultar '+esc(table)+': '+esc(r.error.message)+'</div>';return}
  const all=r.data||[];
- const pending=all.filter(x=>['pending','pendente','awaiting_approval','awaiting approval'].includes(String(x.status||'').trim().toLowerCase()));
- const showAll=['service_requests','partners'].includes(table);
- const rows=showAll?all:pending;
- if(!rows.length){box.innerHTML='<div class="notice">Não existem registos visíveis nesta fila. Pode ainda não haver submissões ou as políticas de leitura podem estar a ocultar os registos.</div>';return}
- box.innerHTML='<p class="muted small">A mostrar '+rows.length+' registo(s)'+(showAll?' no total.':' pendente(s) de '+all.length+' visíveis.')+'</p><table class="table"><thead><tr><th>Data</th><th>Informação / interesse</th><th>Sede / localização</th><th>Estado</th><th>Ação</th></tr></thead><tbody>'+rows.map(x=>{
+ const statusOf=x=>String(x.status||'').trim().toLowerCase().replace(/[ -]+/g,'_');
+ const isPending=x=>['pending','pendente','awaiting_approval','awaiting_approval','under_review','under_review','in_review'].includes(statusOf(x));
+ const isApproved=x=>['approved','aprovado','aprovada','accepted','aceite','aceito'].includes(statusOf(x));
+ const isRejected=x=>['rejected','rejeitado','rejeitada','declined','recusado','recusada'].includes(statusOf(x));
+ const groups=[
+  {key:'approved',title:'Pedidos APROVADOS',items:all.filter(isApproved),cls:'ok'},
+  {key:'pending',title:'Pedidos PENDENTES',items:all.filter(x=>isPending(x)||(!isApproved(x)&&!isRejected(x))),cls:'warn'},
+  {key:'rejected',title:'Pedidos REJEITADOS',items:all.filter(isRejected),cls:'error'}
+ ];
+ function rowHtml(x){
   let info='',loc='';
   if(table==='service_requests'){
-   info='<strong>'+esc(x.client_name||'Nome não indicado')+'</strong><br>'+esc(x.service)+' · '+esc(x.phone)+'<br><span class="small">Necessidade: '+esc(x.description||'—')+'</span>';
-   loc=esc(x.province)+' · '+esc(x.location);
+   info='<strong>'+esc(x.client_name||'Nome não indicado')+'</strong><br>'+esc(x.service||x.service_type||x.title||'Serviço não indicado')+' · '+esc(x.client_phone||x.phone||'')+'<br><span class="small">Necessidade: '+esc(x.description||'—')+'</span>';
+   loc=esc(x.province||'—')+' · '+esc(x.city||x.location||'—');
   }else if(table==='partners'){
-   info='<strong>'+esc(x.organization_name)+'</strong><br>Contacto: '+esc(x.contact_name)+' · '+esc(x.phone)+'<br>Área: '+esc(x.activity_area)+'<br><span class="small">Procura: '+esc(x.partnership_need)+'<br>Serviços: '+esc(x.services_offered)+'<br>E-mail: '+esc(x.email||'—')+' · Website: '+esc(x.website||'—')+'<br>Opera em: '+esc(x.operational_areas||'—')+'</span>';
-   loc=esc(x.headquarters_province)+' · '+esc(x.headquarters_district)+'<br>'+esc(x.headquarters_address);
+   info='<strong>'+esc(x.organization_name||'Organização não indicada')+'</strong><br>Contacto: '+esc(x.contact_name||'—')+' · '+esc(x.phone||'—')+'<br>Área: '+esc(x.activity_area||'—')+'<br><span class="small">Procura: '+esc(x.partnership_need||'—')+'<br>Serviços: '+esc(x.services_offered||'—')+'<br>E-mail: '+esc(x.email||'—')+' · Website: '+esc(x.website||'—')+'<br>Opera em: '+esc(x.operational_areas||'—')+'</span>';
+   loc=esc(x.headquarters_province||'—')+' · '+esc(x.headquarters_district||'—')+'<br>'+esc(x.headquarters_address||'—');
   }else if(table==='workers'){
-   info=esc(x.name)+' · '+esc(x.service);loc=esc(x.province)+' · '+esc(x.location);
+   info='<strong>'+esc(x.name||'Profissional')+'</strong><br>'+esc(x.service||x.category||'—')+'<br><span class="small">'+esc(x.training_area||'')+' · '+esc(x.job_function||'')+'</span>';loc=esc(x.province||'—')+' · '+esc(x.location||'—');
   }else{
-   info=esc(x.title)+' · '+esc(x.service);loc=esc(x.province)+' · '+esc(x.location);
+   info='<strong>'+esc(x.title||'Trabalho')+'</strong><br>'+esc(x.service||x.category||'—');loc=esc(x.province||'—')+' · '+esc(x.location||'—');
   }
-  const pend=['pending','pendente','awaiting_approval','awaiting approval'].includes(String(x.status||'').trim().toLowerCase());
-  const acts=pend?'<button class="btn" data-review-table="'+esc(table)+'" data-review-id="'+esc(x.id)+'" data-review-status="APPROVED">Aprovar</button> <button class="btn danger" data-review-table="'+esc(table)+'" data-review-id="'+esc(x.id)+'" data-review-status="REJECTED">Rejeitar</button>':'—';
-  return '<tr><td>'+new Date(x.created_at).toLocaleString('pt-MZ')+'</td><td>'+info+'</td><td>'+loc+'</td><td>'+esc(x.status)+'</td><td>'+acts+'</td></tr>';
- }).join('')+'</tbody></table>';
+  const acts=isPending(x)?'<button class="btn" data-review-table="'+esc(table)+'" data-review-id="'+esc(x.id)+'" data-review-status="APPROVED">Aprovar</button> <button class="btn danger" data-review-table="'+esc(table)+'" data-review-id="'+esc(x.id)+'" data-review-status="REJECTED">Rejeitar</button>':'—';
+  return '<tr><td>'+esc(x.created_at?new Date(x.created_at).toLocaleString('pt-MZ'):'—')+'</td><td>'+info+'</td><td>'+loc+'</td><td>'+esc(x.status||'—')+'</td><td>'+acts+'</td></tr>';
+ }
+ box.innerHTML=groups.map(g=>'<div class="panel" style="margin-top:14px"><div class="actions" style="justify-content:space-between"><h3>'+g.title+'</h3><span class="status '+g.cls+'">'+g.items.length+'</span></div>'+(g.items.length?'<div class="tablewrap"><table class="table"><thead><tr><th>Data</th><th>Informação / interesse</th><th>Sede / localização</th><th>Estado</th><th>Acção</th></tr></thead><tbody>'+g.items.map(rowHtml).join('')+'</tbody></table></div>':'<div class="notice">Não existem pedidos nesta caixa.</div>')+'</div>').join('');
  box.querySelectorAll('[data-review-status]').forEach(button=>button.addEventListener('click',()=>reviewRecord(button.dataset.reviewTable,button.dataset.reviewId,button.dataset.reviewStatus)));
 }
 async function reviewRecord(table,id,status){const note=prompt(status==='APPROVED'?'Nota opcional de aprovação:':'Motivo da rejeição:','');if(status==='REJECTED'&&note===null)return;const r=await sb.rpc('set_record_status',{p_table:table,p_id:id,p_status:status,p_note:note||null});if(r.error){toast('Não foi possível actualizar: '+r.error.message);return}toast(status==='APPROVED'?'Registo aprovado e publicado.':'Registo rejeitado.');loadApprovals(table);loadDashboard()}
